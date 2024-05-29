@@ -21,15 +21,16 @@ def run():
     # appUtil = AppUtil()   #TODO
 
     try:
-        for business in const.BUSINESSES_VALUES:
+        for business_type in const.BUSINESSES_TYPES:
+            print(f'Data extracting started for business type {business_type}')
             for prefix in const.BUSINESS_NAME_PREFIXES:
-                print(f"Prefix: {prefix} | business:{business}")
+                print(f"Prefix: {prefix} | business type:{business_type}")
                 driver.get(const.WEB_URL)
                 business_name_field = driver.find_element(By.NAME, 'bizname')
                 # Select the license type from the dropdown menu
                 license_type_dropdown = driver.find_element(By.ID, 'licensetype2')
                 business_name_field.send_keys(prefix)
-                license_type_dropdown.send_keys(business)
+                license_type_dropdown.send_keys(business_type)
 
                 # Click the second GO button
                 go_button = driver.find_element(By.NAME, 'go2')
@@ -43,12 +44,12 @@ def run():
                 all = []
                 while True:
                     results_html = driver.page_source
-                    if business == const.GENERAL_CONTRACT:
+                    if business_type == const.GENERAL_CONTRACT:
                         active_business = extract_general_contract_active_businesses(results_html)
-                    elif business == const.ELECTRICAL_FIRM:
+                    elif business_type == const.ELECTRICAL_FIRM:
                         active_business = extract_electrical_firm_active_businesses(results_html)
                     else:
-                        print('Not a matching business')
+                        print('Not a matching business business_type')
 
                     all.extend(active_business)
 
@@ -59,7 +60,7 @@ def run():
                     except NoSuchElementException:
                         break
 
-                process_each_business(driver, all)
+                process_each_business(driver, all, business_type)
     except Exception as e:
         message = f"An error occurred: {e}"
         print(message)
@@ -101,17 +102,41 @@ def extract_electrical_firm_active_businesses(page_source):
     return active_businesses
 
 
-def process_each_business(driver, active_businesses):
+def process_each_business(driver, active_businesses, business_type):
     for business_name, business_link in active_businesses:
         print(f"Processing business: {business_name}")
         driver.get(f'https://a810-bisweb.nyc.gov/bisweb/{business_link}')
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.TAG_NAME, 'body'))
         )
+
         # Extract data from the business detail page as needed
         business_page_source = driver.page_source
-        # Process the business detail page (add your code here)
-        print(f"Processed business: {business_name}")
+        soup = BeautifulSoup(business_page_source, 'html.parser')
+
+        if business_type == const.ELECTRICAL_FIRM:
+            # Extract Office Address
+            address_tag = soup.find('td', string=lambda text: 'Office Address' in text if text else False)
+            if address_tag:
+                address = address_tag.find_next_sibling('td').get_text(strip=True)
+            else:
+                address = const.NA
+            # Extract phone
+            business_phone_tag = soup.find('td', string=lambda text: 'Business Phone' in text if text else False)
+            if business_phone_tag:
+                business_phone_value = business_phone_tag.find_next_sibling('td').get_text(strip=True)
+            else:
+                business_phone_value = const.NA
+
+            # business name
+            business_name_tag = soup.find('b', string=lambda text: 'Business 1' in text if text else False)
+            if business_name_tag:
+                business_name = business_name_tag.parent.get_text(strip=True).split(':')[-1].strip()
+            else:
+                business_name = const.NA
+
+            print(f'business_name:{business_name}, address:{address}, phone:{business_phone_value} ')
+
 
 
 if __name__ == '__main__':

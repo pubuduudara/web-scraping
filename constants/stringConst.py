@@ -6,7 +6,8 @@ BUSINESS_NAME_PREFIXES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K',
                           'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 
 # Businesses
-BUSINESSES_VALUES = ['ELECTRICAL FIRM', 'GENERAL CONTRACT']
-#const
+BUSINESSES_TYPES = ['ELECTRICAL FIRM', 'GENERAL CONTRACT']
+# const
 ELECTRICAL_FIRM = 'ELECTRICAL FIRM'
 GENERAL_CONTRACT = 'GENERAL CONTRACT'
+NA = 'N/A'
