@@ -11,7 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 
 # from utils.appUtil import AppUtil
-# from utils.loggerUtil import logger
+# from utils.loggerUtil import logger #TODO
 
 
 def run():
@@ -29,7 +29,7 @@ def run():
         license_type_dropdown = driver.find_element(By.ID, 'licensetype2')
         for business in const.BUSINESSES_VALUES:
             for prefix in const.BUSINESS_NAME_PREFIXES:
-                # logger.info(f"Prefix: {prefix} | business:{business}")
+                print(f"Prefix: {prefix} | business:{business}")
                 business_name_field.send_keys(prefix)
                 license_type_dropdown.send_keys(business)
 
@@ -38,14 +38,14 @@ def run():
                 go_button.click()
 
                 # Allow some time for the page to load
-                time.sleep(5)
+                time.sleep(2)
 
                 # Capture the results page HTML
 
                 all = []
                 while True:
                     results_html = driver.page_source
-                    active_business = extract_active_businesses(driver, results_html)
+                    active_business = extract_general_contract_active_businesses(results_html)
                     all.extend(active_business)
                     try:
                         next_button = driver.find_element(By.NAME, 'next')
@@ -55,12 +55,32 @@ def run():
                         break
 
                 process_each_business(driver, all)
+    except Exception as e:
+        message = f"An error occurred: {e}"
+        print(message)
     finally:
         # Close the WebDriver
         driver.quit()
 
 
-def extract_active_businesses(driver, page_source):
+def extract_general_contract_active_businesses(page_source):
+    soup = BeautifulSoup(page_source, 'html.parser')
+    active_businesses = []
+    rows = soup.find_all('tr')
+    for row in rows:
+        columns = row.find_all('td')
+        if len(columns) >= 4:
+            business_name = columns[0].get_text(strip=True)
+            status = columns[3].get_text(strip=True)
+            if status == 'ACTIVE':
+                link = columns[1].find('a')['href']
+                # active_businesses.append({'name': business_name, 'link': link})
+                active_businesses.append((business_name, link))
+
+    return active_businesses
+
+
+def extract_electrical_firm_active_businesses(page_source):
     soup = BeautifulSoup(page_source, 'html.parser')
     active_businesses = []
     rows = soup.find_all('tr')
