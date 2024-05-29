@@ -45,7 +45,10 @@ def run():
                 all = []
                 while True:
                     results_html = driver.page_source
-                    active_business = extract_general_contract_active_businesses(results_html)
+                    if business == const.GENERAL_CONTRACT:
+                        active_business = extract_general_contract_active_businesses(results_html)
+                    elif business == const.ELECTRICAL_FIRM:
+                        active_business = extract_electrical_firm_active_businesses(results_html)
                     all.extend(active_business)
                     try:
                         next_button = driver.find_element(By.NAME, 'next')
