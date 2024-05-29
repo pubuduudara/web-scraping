@@ -21,7 +21,6 @@ def run():
     # appUtil = AppUtil()   #TODO
 
     try:
-        # Open the URL
         for business in const.BUSINESSES_VALUES:
             for prefix in const.BUSINESS_NAME_PREFIXES:
                 print(f"Prefix: {prefix} | business:{business}")
@@ -48,7 +47,11 @@ def run():
                         active_business = extract_general_contract_active_businesses(results_html)
                     elif business == const.ELECTRICAL_FIRM:
                         active_business = extract_electrical_firm_active_businesses(results_html)
+                    else:
+                        print('Not a matching business')
+
                     all.extend(active_business)
+
                     try:
                         next_button = driver.find_element(By.NAME, 'next')
                         next_button.click()
