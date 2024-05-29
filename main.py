@@ -22,14 +22,13 @@ def run():
 
     try:
         # Open the URL
-        driver.get(const.WEB_URL)
-
-        business_name_field = driver.find_element(By.NAME, 'bizname')
-        # Select the license type from the dropdown menu
-        license_type_dropdown = driver.find_element(By.ID, 'licensetype2')
         for business in const.BUSINESSES_VALUES:
             for prefix in const.BUSINESS_NAME_PREFIXES:
                 print(f"Prefix: {prefix} | business:{business}")
+                driver.get(const.WEB_URL)
+                business_name_field = driver.find_element(By.NAME, 'bizname')
+                # Select the license type from the dropdown menu
+                license_type_dropdown = driver.find_element(By.ID, 'licensetype2')
                 business_name_field.send_keys(prefix)
                 license_type_dropdown.send_keys(business)
 
