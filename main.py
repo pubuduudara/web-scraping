@@ -62,6 +62,7 @@ def run():
 
                 process_each_business(driver, all, business_type)
     except Exception as e:
+        #add intemediate chatch and skip any non processed recrods
         message = f"An error occurred: {e}"
         print(message)
     finally:
@@ -135,8 +136,42 @@ def process_each_business(driver, active_businesses, business_type):
             else:
                 business_name = const.NA
 
-            print(f'business_name:{business_name}, address:{address}, phone:{business_phone_value} ')
+            # Find the correct table
+            table = soup.find_all('table')[6]
+            if len(table.find_all('tr')) <= 1:
+                print("Table has no entries")
+                # TODO: check with the client because this record will not be added to the database
+                continue
+            else:
+                # Define variables to hold the extracted values
+                licensee = None
+                license_number = None
+                expiration_date = None
+                status = None
 
+                # Iterate through the table rows
+                for row in table.find_all('tr')[1:]:
+                    columns = row.find_all('td')
+                    relationship = columns[2].get_text(strip=True)
+                    if relationship == 'RESPONSIBLE REP':
+                        licensee = columns[0].get_text(strip=True)
+                        license_number = columns[1].get_text(strip=True)
+                        expiration_date = columns[3].get_text(strip=True)
+                        status = columns[4].get_text(strip=True)
+
+                print(f"Licensee: {licensee}")
+                print(f"License Number: {license_number}")
+                print(f"Expiration Date: {expiration_date}")
+                print(f"Status: {status}")
+
+
+def find_correct_table(soup):
+    tables = soup.find_all('table')
+    for table in tables:
+        headers = [header.get_text(strip=True).lower() for header in table.find_all('th')]
+        if 'relationship' in headers:
+            return table
+    return None
 
 
 if __name__ == '__main__':
