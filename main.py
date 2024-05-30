@@ -1,10 +1,12 @@
 from selenium.common import NoSuchElementException
 from selenium.webdriver.common.by import By
 import time
-
+import json
 from selenium.webdriver.support.wait import WebDriverWait
 
 import constants.stringConst as const
+import constants.queries as query
+from connection import Connection
 from services.seleniumService import SeleniumService
 from bs4 import BeautifulSoup
 from selenium.webdriver.support import expected_conditions as EC
@@ -17,6 +19,8 @@ from selenium.webdriver.support import expected_conditions as EC
 def run():
     # initiate driver
     driver = SeleniumService.init_web_drive()
+    db_con = Connection.connect_to_db()
+    db_cursor = db_con.cursor()
 
     # appUtil = AppUtil()   #TODO
 
@@ -60,7 +64,7 @@ def run():
                     except NoSuchElementException:
                         break
 
-                process_each_business(driver, all, business_type)
+                process_each_business(driver, all, business_type, db_con, db_cursor)
     except Exception as e:
         # add intemediate chatch and skip any non processed recrods
         message = f"An error occurred: {e}"
@@ -103,7 +107,7 @@ def extract_electrical_firm_active_businesses(page_source):
     return active_businesses
 
 
-def process_each_business(driver, active_businesses, business_type):
+def process_each_business(driver, active_businesses, business_type, db_con, db_cursor):
     for business_name, business_link in active_businesses:
         print(f"Processing business: {business_name}")
         driver.get(f'https://a810-bisweb.nyc.gov/bisweb/{business_link}')
@@ -118,16 +122,43 @@ def process_each_business(driver, active_businesses, business_type):
         if business_type == const.CONST_ELECTRICAL_FIRM:
             contact_details = extract_electrical_firm_contact_details(soup)
 
-            licensee_list = extract_electrical_firm_licensee_details(
-                soup.find_all('table')[6])  # TODO: this can be empty
+            licensee_list = json.dumps(extract_electrical_firm_licensee_details(
+                soup.find_all('table')[6]))  # TODO: this can be empty
 
-            insurance_list = extract_electrical_firm_insurance_details(soup.find_all('table')[4])
-            print(insurance_list)
+            business_contact_data_to_insert = (
+                contact_details.get(const.CONST_BUSINESS_NAME),
+                contact_details.get(const.CONST_BUSINESS_OFFICE_ADDRESS),
+                contact_details.get(const.CONST_BUSINESS_PHONE_NUMBER),
+                const.CONST_ELECTRICAL_FIRM,
+                licensee_list)
+            db_cursor.execute(query.INSERT_BUSINESS_CONTACT_DETAILS, business_contact_data_to_insert)
+            business_contact_table_id = db_cursor.fetchone()[0]
+            db_con.commit()
+
+            insurance_data_to_insert = extract_electrical_firm_insurance_details(soup.find_all('table')[4],
+                                                                                 business_contact_table_id)
+            db_cursor.executemany(query.INSERT_LICENSEE_DETAILS, insurance_data_to_insert)
+            db_con.commit()
+
         if business_type == const.CONST_GENERAL_CONTRACT:
             contact_details = extract_general_contract_contact_details(soup)  # TODO: once missing
-            insurance_list = extract_general_contract_insurance_details(soup.find_all('table')[6])
-            licensee_list = extract_general_contract_licensee_details(soup.find_all('table')[3])
-            print(contact_details)
+            licensee_list = json.dumps(extract_general_contract_licensee_details(soup.find_all('table')[3]))
+            business_contact_data_to_insert = (
+                contact_details.get(const.CONST_BUSINESS_NAME),
+                contact_details.get(const.CONST_BUSINESS_OFFICE_ADDRESS),
+                contact_details.get(const.CONST_BUSINESS_PHONE_NUMBER),
+                const.CONST_GENERAL_CONTRACT,
+                licensee_list)
+
+            db_cursor.execute(query.INSERT_BUSINESS_CONTACT_DETAILS, business_contact_data_to_insert)
+            business_contact_table_id = db_cursor.fetchone()[0]
+            db_con.commit()
+
+            insurance_data_to_insert = extract_general_contract_insurance_details(soup.find_all('table')[6],
+                                                                                  business_contact_table_id)
+
+            db_cursor.executemany(query.INSERT_LICENSEE_DETAILS, insurance_data_to_insert)
+            db_con.commit()
 
 
 def extract_general_contract_contact_details(soup):
@@ -263,7 +294,7 @@ def extract_electrical_firm_licensee_details(table):
         return licensee_list
 
 
-def extract_electrical_firm_insurance_details(table):
+def extract_electrical_firm_insurance_details(table, business_contact_db_table_id):
     """
         Extracts insurance details for an electrical firm from the given HTML table.a
 
@@ -279,9 +310,13 @@ def extract_electrical_firm_insurance_details(table):
                 - Expiration date
         """
     insurance_list = []
-
+    all_tr = table.find_all('tr')
+    if len(all_tr) == 7:
+        start_index = 3
+    else:
+        start_index = 2
     # Iterate through the table rows
-    for row in table.find_all('tr')[2:]:
+    for row in table.find_all('tr')[start_index:]:
         columns = row.find_all('td')
         if len(columns) != 5:
             break
@@ -291,12 +326,12 @@ def extract_electrical_firm_insurance_details(table):
             required = columns[2].get_text(strip=True)
             company = columns[3].get_text(strip=True)
             exp_date = columns[4].get_text(strip=True)
-            insurance_list.append([insurance_type, policy, required, company, exp_date])
+            insurance_list.append((business_contact_db_table_id, insurance_type, policy, required, company, exp_date))
 
     return insurance_list
 
 
-def extract_general_contract_insurance_details(table):
+def extract_general_contract_insurance_details(table, business_contact_db_table_id):
     """
         Extracts insurance details for an general contract from the given HTML table.a
 
@@ -312,9 +347,14 @@ def extract_general_contract_insurance_details(table):
                 - Expiration date
         """
     insurance_list = []
+    all_tr = table.find_all('tr')
+    if len(all_tr) == 9:
+        start_index = 4
+    else:
+        start_index = 3
 
     # Iterate through the table rows
-    for row in table.find_all('tr')[3:]:
+    for row in table.find_all('tr')[start_index:]:
         columns = row.find_all('td')
         if len(columns) != 5:
             break
@@ -324,7 +364,7 @@ def extract_general_contract_insurance_details(table):
             required = columns[2].get_text(strip=True)
             company = columns[3].get_text(strip=True)
             exp_date = columns[4].get_text(strip=True)
-            insurance_list.append([insurance_type, policy, required, company, exp_date])
+            insurance_list.append((business_contact_db_table_id, insurance_type, policy, required, company, exp_date))
 
     return insurance_list
 

@@ -17,3 +17,11 @@ CONST_BUSINESS_PHONE_NUMBER = 'business_phone_number'
 CONST_CONTRACTOR_ID = 'contractor_id'
 CONST_EXPIRATION_DATE = 'expiration_date'
 CONST_LICENSEE_NAME = 'licensee_name'
+
+#db const
+DB_HOST = 'localhost'
+DB_USER = 'postgres'
+DB_PASSWORD ='password'
+DB_PORT ='5441'
+DB_NAME = 'NYC'
+
