@@ -126,6 +126,7 @@ def process_each_business(driver, active_businesses, business_type):
         if business_type == const.CONST_GENERAL_CONTRACT:
             contact_details = extract_general_contract_contact_details(soup)  # TODO: once missing
             insurance_list = extract_general_contract_insurance_details(soup.find_all('table')[6])
+            licensee_list = extract_general_contract_licensee_details(soup.find_all('table')[3])
             print(contact_details)
 
 
@@ -164,6 +165,31 @@ def extract_general_contract_contact_details(soup):
 
     return {const.CONST_BUSINESS_NAME: business_name, const.CONST_BUSINESS_OFFICE_ADDRESS: address,
             const.CONST_BUSINESS_PHONE_NUMBER: business_phone_value}
+
+
+def extract_general_contract_licensee_details(table):
+    """
+        Extracts licensee details for a general contract from the given HTML table.
+
+        Args:
+            table (BeautifulSoup): A BeautifulSoup object containing the parsed HTML table.
+
+        Returns:
+            dict: A dictionary containing the extracted details with keys
+                - CONST_LICENSEE_NAME: The name of the licensee.
+                - CONST_CONTRACTOR_ID: Contractor id.
+                - CONST_EXPIRATION_DATE: Exp Date.
+        """
+    licensee_name = table.find('td', class_='centercolhdg').find('b').getText(strip=True)
+    contractor_id = \
+        table.find('b', string=lambda text: 'Contractor ID' in text if text else False).parent.get_text(
+            strip=True).split(
+            ':')[-1].strip()
+    expiration_date = \
+        table.find('b', string=lambda text: 'Expiration' in text if text else False).parent.get_text(strip=True).split(
+            ':')[-1].strip()
+    return {const.CONST_LICENSEE_NAME: licensee_name, const.CONST_CONTRACTOR_ID: contractor_id,
+            const.CONST_EXPIRATION_DATE: expiration_date}
 
 
 def extract_electrical_firm_contact_details(soup):
