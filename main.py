@@ -118,13 +118,52 @@ def process_each_business(driver, active_businesses, business_type):
         if business_type == const.CONST_ELECTRICAL_FIRM:
             contact_details = extract_electrical_firm_contact_details(soup)
 
-            # Find the correct table
-            table = soup.find_all('table')[6]
-
-            licensee_list = extract_electrical_firm_licensee_details(table)  # TODO: this can be empty
+            licensee_list = extract_electrical_firm_licensee_details(
+                soup.find_all('table')[6])  # TODO: this can be empty
 
             insurance_list = extract_electrical_firm_insurance_details(soup.find_all('table')[4])
             print(insurance_list)
+        if business_type == const.CONST_GENERAL_CONTRACT:
+            contact_details = extract_general_contract_contact_details(soup)  # TODO: once missing
+            insurance_list = extract_general_contract_insurance_details(soup.find_all('table')[6])
+            print(contact_details)
+
+
+def extract_general_contract_contact_details(soup):
+    """
+        Extracts insurance details for an general contract from the given BeautifulSoup object.
+
+        Args:
+            soup (BeautifulSoup): A BeautifulSoup object containing the parsed HTML of the page.
+
+        Returns:
+            dict: A dictionary containing the extracted details with keys:
+                - CONST_BUSINESS_NAME: The name of the business.
+                - CONST_BUSINESS_OFFICE_ADDRESS: The office address of the business.
+                - CONST_BUSINESS_PHONE_NUMBER: The business phone number.
+        """
+    # Extract Office Address
+    address_tag = soup.find('b', string=lambda text: 'Office Address' in text if text else False)
+    if address_tag:
+        address = address_tag.parent.get_text(strip=True).split(':')[-1].strip()
+    else:
+        address = const.CONST_NA
+    # Extract phone
+    business_phone_tag = soup.find('b', string=lambda text: 'Business Phone' in text if text else False)
+    if business_phone_tag:
+        business_phone_value = business_phone_tag.parent.get_text(strip=True).split(':')[-1].strip()
+    else:
+        business_phone_value = const.CONST_NA
+
+    # business name
+    business_name_tag = soup.find('b', string=lambda text: 'Business 1' in text if text else False)
+    if business_name_tag:
+        business_name = business_name_tag.parent.parent.get_text(strip=True).split(':')[-1].strip()
+    else:
+        business_name = const.CONST_NA
+
+    return {const.CONST_BUSINESS_NAME: business_name, const.CONST_BUSINESS_OFFICE_ADDRESS: address,
+            const.CONST_BUSINESS_PHONE_NUMBER: business_phone_value}
 
 
 def extract_electrical_firm_contact_details(soup):
@@ -217,6 +256,39 @@ def extract_electrical_firm_insurance_details(table):
 
     # Iterate through the table rows
     for row in table.find_all('tr')[2:]:
+        columns = row.find_all('td')
+        if len(columns) != 5:
+            break
+        else:
+            insurance_type = columns[0].get_text(strip=True)
+            policy = columns[1].get_text(strip=True)
+            required = columns[2].get_text(strip=True)
+            company = columns[3].get_text(strip=True)
+            exp_date = columns[4].get_text(strip=True)
+            insurance_list.append([insurance_type, policy, required, company, exp_date])
+
+    return insurance_list
+
+
+def extract_general_contract_insurance_details(table):
+    """
+        Extracts insurance details for an general contract from the given HTML table.a
+
+        Args:
+            table (BeautifulSoup): A BeautifulSoup object containing the parsed HTML table.
+
+        Returns:
+            list: A list of lists, each containing the following details for each insurance entry:
+                - Insurance type
+                - Policy number
+                - Required (yes/no)
+                - Insurance company
+                - Expiration date
+        """
+    insurance_list = []
+
+    # Iterate through the table rows
+    for row in table.find_all('tr')[3:]:
         columns = row.find_all('td')
         if len(columns) != 5:
             break
