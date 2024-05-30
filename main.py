@@ -152,9 +152,9 @@ def extract_general_contract_contact_details(soup):
     # Extract phone
     business_phone_tag = soup.find('b', string=lambda text: 'Business Phone' in text if text else False)
     if business_phone_tag:
-        business_phone_value = business_phone_tag.parent.get_text(strip=True).split(':')[-1].strip()
+        business_phone = business_phone_tag.parent.get_text(strip=True).split(':')[-1].strip()
     else:
-        business_phone_value = const.CONST_NA
+        business_phone = const.CONST_NA
 
     # business name
     business_name_tag = soup.find('b', string=lambda text: 'Business 1' in text if text else False)
@@ -164,7 +164,7 @@ def extract_general_contract_contact_details(soup):
         business_name = const.CONST_NA
 
     return {const.CONST_BUSINESS_NAME: business_name, const.CONST_BUSINESS_OFFICE_ADDRESS: address,
-            const.CONST_BUSINESS_PHONE_NUMBER: business_phone_value}
+            const.CONST_BUSINESS_PHONE_NUMBER: business_phone}
 
 
 def extract_general_contract_licensee_details(table):
