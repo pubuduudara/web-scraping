@@ -62,7 +62,7 @@ def run():
 
                 process_each_business(driver, all, business_type)
     except Exception as e:
-        #add intemediate chatch and skip any non processed recrods
+        # add intemediate chatch and skip any non processed recrods
         message = f"An error occurred: {e}"
         print(message)
     finally:
@@ -144,11 +144,7 @@ def process_each_business(driver, active_businesses, business_type):
                 continue
             else:
                 # Define variables to hold the extracted values
-                licensee = None
-                license_number = None
-                expiration_date = None
-                status = None
-
+                licensee_list = []
                 # Iterate through the table rows
                 for row in table.find_all('tr')[1:]:
                     columns = row.find_all('td')
@@ -158,20 +154,31 @@ def process_each_business(driver, active_businesses, business_type):
                         license_number = columns[1].get_text(strip=True)
                         expiration_date = columns[3].get_text(strip=True)
                         status = columns[4].get_text(strip=True)
+                        licensee_list.append([licensee, license_number, expiration_date, status])
 
-                print(f"Licensee: {licensee}")
-                print(f"License Number: {license_number}")
-                print(f"Expiration Date: {expiration_date}")
-                print(f"Status: {status}")
+                print(licensee_list)
+
+            insurance_list = extract_electrical_firm_insurance_details(soup.find_all('table')[4])
+            print(insurance_list)
 
 
-def find_correct_table(soup):
-    tables = soup.find_all('table')
-    for table in tables:
-        headers = [header.get_text(strip=True).lower() for header in table.find_all('th')]
-        if 'relationship' in headers:
-            return table
-    return None
+def extract_electrical_firm_insurance_details(table):
+    insurance_list = []
+
+    # Iterate through the table rows
+    for row in table.find_all('tr')[2:]:
+        columns = row.find_all('td')
+        if len(columns) != 5:
+            break
+        else:
+            insurance_type = columns[0].get_text(strip=True)
+            policy = columns[1].get_text(strip=True)
+            required = columns[2].get_text(strip=True)
+            company = columns[3].get_text(strip=True)
+            exp_date = columns[4].get_text(strip=True)
+            insurance_list.append([insurance_type, policy, required, company, exp_date])
+
+    return insurance_list
 
 
 if __name__ == '__main__':
