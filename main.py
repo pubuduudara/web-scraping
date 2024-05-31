@@ -3,7 +3,7 @@ from selenium.webdriver.common.by import By
 import time
 import json
 from selenium.webdriver.support.wait import WebDriverWait
-
+from psycopg2.extras import execute_batch
 import constants.stringConst as const
 import constants.queries as query
 from connection import Connection
@@ -41,7 +41,7 @@ def run():
                 go_button.click()
 
                 # Allow some time for the page to load
-                time.sleep(2)
+                time.sleep(0.005)
 
                 # Capture the results page HTML
 
@@ -60,11 +60,12 @@ def run():
                     try:
                         next_button = driver.find_element(By.NAME, 'next')
                         next_button.click()
-                        time.sleep(2)  # Adjust sleep time as necessary
+                        time.sleep(0.005)  # Adjust sleep time as necessary
                     except NoSuchElementException:
                         break
 
                 process_each_business(driver, all, business_type, db_con, db_cursor)
+        print("====COMPLETED======")
     except Exception as e:
         # add intemediate chatch and skip any non processed recrods
         message = f"An error occurred: {e}"
@@ -109,9 +110,9 @@ def extract_electrical_firm_active_businesses(page_source):
 
 def process_each_business(driver, active_businesses, business_type, db_con, db_cursor):
     for business_name, business_link in active_businesses:
-        print(f"Processing business: {business_name}")
+        print(f"Processing.. Type: {business_type} | business: {business_name}")
         driver.get(f'https://a810-bisweb.nyc.gov/bisweb/{business_link}')
-        WebDriverWait(driver, 10).until(
+        WebDriverWait(driver, 0.005).until(
             EC.presence_of_element_located((By.TAG_NAME, 'body'))
         )
 
@@ -137,7 +138,7 @@ def process_each_business(driver, active_businesses, business_type, db_con, db_c
 
             insurance_data_to_insert = extract_electrical_firm_insurance_details(soup.find_all('table')[4],
                                                                                  business_contact_table_id)
-            db_cursor.executemany(query.INSERT_LICENSEE_DETAILS, insurance_data_to_insert)
+            execute_batch(db_cursor, query.INSERT_LICENSEE_DETAILS, insurance_data_to_insert)
             db_con.commit()
 
         if business_type == const.CONST_GENERAL_CONTRACT:
@@ -157,7 +158,7 @@ def process_each_business(driver, active_businesses, business_type, db_con, db_c
             insurance_data_to_insert = extract_general_contract_insurance_details(soup.find_all('table')[6],
                                                                                   business_contact_table_id)
 
-            db_cursor.executemany(query.INSERT_LICENSEE_DETAILS, insurance_data_to_insert)
+            execute_batch(db_cursor, query.INSERT_LICENSEE_DETAILS, insurance_data_to_insert)
             db_con.commit()
 
 
@@ -321,11 +322,11 @@ def extract_electrical_firm_insurance_details(table, business_contact_db_table_i
         if len(columns) != 5:
             break
         else:
-            insurance_type = columns[0].get_text(strip=True)
-            policy = columns[1].get_text(strip=True)
-            required = columns[2].get_text(strip=True)
-            company = columns[3].get_text(strip=True)
-            exp_date = columns[4].get_text(strip=True)
+            insurance_type = sanitize_data(columns[0].get_text(strip=True))
+            policy = sanitize_data(columns[1].get_text(strip=True))
+            required = sanitize_data(columns[2].get_text(strip=True))
+            company = sanitize_data(columns[3].get_text(strip=True))
+            exp_date = sanitize_data(columns[4].get_text(strip=True))
             insurance_list.append((business_contact_db_table_id, insurance_type, policy, required, company, exp_date))
 
     return insurance_list
@@ -359,14 +360,18 @@ def extract_general_contract_insurance_details(table, business_contact_db_table_
         if len(columns) != 5:
             break
         else:
-            insurance_type = columns[0].get_text(strip=True)
-            policy = columns[1].get_text(strip=True)
-            required = columns[2].get_text(strip=True)
-            company = columns[3].get_text(strip=True)
-            exp_date = columns[4].get_text(strip=True)
+            insurance_type = sanitize_data(columns[0].get_text(strip=True))
+            policy = sanitize_data(columns[1].get_text(strip=True))
+            required = sanitize_data(columns[2].get_text(strip=True))
+            company = sanitize_data(columns[3].get_text(strip=True))
+            exp_date = sanitize_data(columns[4].get_text(strip=True))
             insurance_list.append((business_contact_db_table_id, insurance_type, policy, required, company, exp_date))
 
     return insurance_list
+
+
+def sanitize_data(value):
+    return value if value != '' else None
 
 
 if __name__ == '__main__':
