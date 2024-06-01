@@ -2,7 +2,8 @@
 WEB_URL = 'https://a810-bisweb.nyc.gov/bisweb/LicenseTypeServlet?vlfirst=N'
 
 # Business Name prefix
-BUSINESS_NAME_PREFIXES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
+BUSINESS_NAME_PREFIXES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I',
+                          'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
                           'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 
 # Businesses
@@ -18,10 +19,9 @@ CONST_CONTRACTOR_ID = 'contractor_id'
 CONST_EXPIRATION_DATE = 'expiration_date'
 CONST_LICENSEE_NAME = 'licensee_name'
 
-#db const
+# db const
 DB_HOST = 'localhost'
 DB_USER = 'postgres'
-DB_PASSWORD ='password'
-DB_PORT ='5441'
+DB_PASSWORD = 'password'
+DB_PORT = '5441'
 DB_NAME = 'NYC'
-
