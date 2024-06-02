@@ -1,3 +1,5 @@
+import json
+
 from selenium.common import NoSuchElementException
 from selenium.webdriver.common.by import By
 import time
@@ -15,7 +17,7 @@ from selenium.webdriver.support import expected_conditions as EC
 # from utils.loggerUtil import logger #TODO
 
 
-def run():
+def lambda_handler(event, context):
     # initiate driver
     driver = SeleniumService.init_web_drive()
     db_con = Connection.connect_to_db()
@@ -24,51 +26,53 @@ def run():
     # appUtil = AppUtil()   #TODO
 
     try:
-        for business_type in const.BUSINESSES_TYPES:
-            print(f'Data extracting started for business type {business_type}')
-            for prefix in const.BUSINESS_NAME_PREFIXES:
-                print(f"Prefix: {prefix} | business type:{business_type}")
-                driver.get(const.WEB_URL)
-                business_name_field = driver.find_element(By.NAME, 'bizname')
-                # Select the license type from the dropdown menu
-                license_type_dropdown = driver.find_element(By.ID, 'licensetype2')
-                business_name_field.send_keys(prefix)
-                license_type_dropdown.send_keys(business_type)
+        message_body = event['Records'][0]['body']
+        message_data = json.loads(message_body)
+        business_type = message_data.get('business_type')
+        prefix = message_data.get('prefix')
+        print(f"Prefix: {prefix} | business type:{business_type}")
+        driver.get(const.WEB_URL)
+        business_name_field = driver.find_element(By.NAME, 'bizname')
+        # Select the license type from the dropdown menu
+        license_type_dropdown = driver.find_element(By.ID, 'licensetype2')
+        business_name_field.send_keys(prefix)
+        license_type_dropdown.send_keys(business_type)
 
-                # Click the second GO button
-                go_button = driver.find_element(By.NAME, 'go2')
-                go_button.click()
+        # Click the second GO button
+        go_button = driver.find_element(By.NAME, 'go2')
+        go_button.click()
 
-                # Allow some time for the page to load
-                time.sleep(0.005)
+        # Allow some time for the page to load
+        time.sleep(0.005)
 
-                # Capture the results page HTML
+        # Capture the results page HTML
 
-                all = []
-                while True:
-                    results_html = driver.page_source
-                    if business_type == const.CONST_GENERAL_CONTRACT:
-                        active_business = extract_general_contract_active_businesses(results_html)
-                    elif business_type == const.CONST_ELECTRICAL_FIRM:
-                        active_business = extract_electrical_firm_active_businesses(results_html)
-                    else:
-                        print('Not a matching business business_type')
+        all = []
+        while True:
+            results_html = driver.page_source
+            if business_type == const.CONST_GENERAL_CONTRACT:
+                active_business = extract_general_contract_active_businesses(results_html)
+            elif business_type == const.CONST_ELECTRICAL_FIRM:
+                active_business = extract_electrical_firm_active_businesses(results_html)
+            else:
+                print('Not a matching business business_type')
 
-                    all.extend(active_business)
+            all.extend(active_business)
 
-                    try:
-                        next_button = driver.find_element(By.NAME, 'next')
-                        next_button.click()
-                        time.sleep(0.005)  # Adjust sleep time as necessary
-                    except NoSuchElementException:
-                        break
+            try:
+                next_button = driver.find_element(By.NAME, 'next')
+                next_button.click()
+                time.sleep(0.005)  # Adjust sleep time as necessary
+            except NoSuchElementException:
+                break
 
-                process_each_business(driver, all, business_type, db_con, db_cursor)
+        process_each_business(driver, all, business_type, db_con, db_cursor)
         print("====COMPLETED======")
     except Exception as e:
         # add intemediate chatch and skip any non processed recrods
         message = f"An error occurred: {e}"
         print(message)
+
     finally:
         # Close the WebDriver
         driver.quit()
@@ -145,7 +149,7 @@ def process_each_business(driver, active_businesses, business_type, db_con, db_c
             db_con.commit()
 
             insurance_data_to_insert = extract_general_contract_insurance_details(soup.find_all('table')[6],
-                                                                                  business_name,licensee_list[0])
+                                                                                  business_name, licensee_list[0])
 
             execute_batch(db_cursor, query.INSERT_LICENSEE_DETAILS_GENERAL_CONTRACT, insurance_data_to_insert)
             db_con.commit()
@@ -362,7 +366,3 @@ def extract_general_contract_insurance_details(table, business_name, licensee_na
 
 def sanitize_data(value):
     return value if value != '' else None
-
-
-if __name__ == '__main__':
-    run()

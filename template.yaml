@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  SAM template to deploy a Lambda function triggered by SQS
+
+Resources:
+  JobProcessFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: Job-Process
+      CodeUri: lambda
+      Handler: main.lambda_handler
+      Runtime: python3.9
+      MemorySize: 512
+      Environment:
+        Variables:
+          DB_HOST: nyc.cluster-clgai2asse3b.us-east-1.rds.amazonaws.com
+          DB_USER: postgres
+          DB_PASSWORD: password
+          DB_NAME: nyc
+          DB_PORT: 5432
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: "Allow"
+              Action:
+                - "sqs:ReceiveMessage"
+                - "sqs:DeleteMessage"
+                - "sqs:GetQueueAttributes"
+              Resource: "*"
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt JobQueue.Arn
+
+  JobQueue:
+    Type: 'AWS::SQS::Queue'
+    Properties:
+      QueueName: job-queue
+
+Outputs:
+  JobProcessFunctionArn:
+    Description: "ARN of JobProcessFunction"
+    Value: !GetAtt JobProcessFunction.Arn
+
