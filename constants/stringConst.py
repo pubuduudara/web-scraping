@@ -20,8 +20,14 @@ CONST_EXPIRATION_DATE = 'expiration_date'
 CONST_LICENSEE_NAME = 'licensee_name'
 
 # db const
-DB_HOST = 'localhost'
+# DB_HOST = 'localhost'
+# DB_USER = 'postgres'
+# DB_PASSWORD = 'password'
+# DB_PORT = '5441'
+# DB_NAME = 'NYC'
+
+DB_HOST = ''
 DB_USER = 'postgres'
-DB_PASSWORD = 'password'
-DB_PORT = '5441'
-DB_NAME = 'NYC'
+DB_PASSWORD = ''
+DB_PORT = '5432'
+DB_NAME = ''
