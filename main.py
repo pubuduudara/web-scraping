@@ -142,49 +142,49 @@ def process_each_business(driver, active_businesses, business_type, db_con, db_c
         if business_type == const.CONST_ELECTRICAL_FIRM:
             contact_details_list = extract_electrical_firm_contact_details(soup)
 
-            licensee_list = extract_electrical_firm_licensee_details(
+            licensee = extract_electrical_firm_licensee_details(
                 soup.find_all('table')[6])
 
-            if len(licensee_list) > 0:
-                insert_data = create_electrical_firm_business_contact_db_data(contact_details_list, licensee_list, URL)
-                execute_batch(db_cursor, query.INSERT_BUSINESS_CONTACT_DETAILS_ELECTRICAL_FIRM, insert_data)
+            if len(licensee) > 0:
+                # insert business contact data
+                business_contact_data = create_business_contact_db_data(contact_details_list, licensee,
+                                                                        const.CONST_ELECTRICAL_FIRM, URL)
+                db_cursor.execute(query.INSERT_BUSINESS_CONTACT_DETAILS_ELECTRICAL_FIRM, business_contact_data)
+                business_contact_table_id = db_cursor.fetchone()[0]
+                db_con.commit()
+
+                # insert insurance data
+                insurance_data = extract_electrical_firm_insurance_details(soup.find_all('table')[4],
+                                                                           business_contact_table_id)
+                execute_batch(db_cursor, query.INSERT_INSURANCE_DATA, insurance_data)
                 db_con.commit()
             else:
                 print('No licensees to insert')
 
-            insurance_data_to_insert = extract_electrical_firm_insurance_details(soup.find_all('table')[4],
-                                                                                 business_name)
-            execute_batch(db_cursor, query.INSERT_LICENSEE_DETAILS_ELECTRICAL_FIRM, insurance_data_to_insert)
-            db_con.commit()
-
-        if business_type == const.CONST_GENERAL_CONTRACT:
+        elif business_type == const.CONST_GENERAL_CONTRACT:
             contact_details = extract_general_contract_contact_details(soup)
-            licensee_list = extract_general_contract_licensee_details(soup.find_all('table')[3])
-            insert_data = create_general_contract_business_contact_db_data(contact_details, licensee_list, URL)
-            db_cursor.execute(query.INSERT_BUSINESS_CONTACT_DETAILS_GENERAL_CONTRACT, insert_data)
+            licensee = extract_general_contract_licensee_details(soup.find_all('table')[3])
+            business_contact_data = create_business_contact_db_data(contact_details, licensee,
+                                                                    const.CONST_GENERAL_CONTRACT, URL)
+            db_cursor.execute(query.INSERT_BUSINESS_CONTACT_DETAILS_GENERAL_CONTRACT,
+                              business_contact_data)
+            business_contact_table_id = db_cursor.fetchone()[0]
             db_con.commit()
 
-            insurance_data_to_insert = extract_general_contract_insurance_details(soup.find_all('table')[6],
-                                                                                  business_name, licensee_list[0])
+            insurance_data = extract_general_contract_insurance_details(soup.find_all('table')[6],
+                                                                        business_contact_table_id)
 
-            execute_batch(db_cursor, query.INSERT_LICENSEE_DETAILS_GENERAL_CONTRACT, insurance_data_to_insert)
+            execute_batch(db_cursor, query.INSERT_INSURANCE_DATA, insurance_data)
             db_con.commit()
 
-
-def create_electrical_firm_business_contact_db_data(contact_details_list, licensee_details_list, pageURL):
-    db_rows = []
-    for licensee in licensee_details_list:
-        licensee.extend(contact_details_list)
-        licensee.append(const.CONST_ELECTRICAL_FIRM)
-        licensee.append(pageURL)
-        db_rows.append(licensee)
-    return db_rows
+        else:
+            print("Undefined business type")
 
 
-def create_general_contract_business_contact_db_data(contact_details_list, licensee_details, pageURL):
+def create_business_contact_db_data(contact_details_list, licensee_details, business_type, pageUrl):
     licensee_details.extend(contact_details_list)
-    licensee_details.append(const.CONST_GENERAL_CONTRACT)
-    licensee_details.append(pageURL)
+    licensee_details.append(business_type)
+    licensee_details.append(pageUrl)
     return tuple(licensee_details)
 
 
@@ -281,44 +281,32 @@ def extract_electrical_firm_licensee_details(table):
         Args:
             table (BeautifulSoup): A BeautifulSoup object containing the parsed HTML table.
 
-        Returns:
-            list: A list of lists, each containing the following details for each 'RESPONSIBLE REP':
-                - Licensee name
-                - License number
-                - Expiration date
-                - Status
         """
     if len(table.find_all('tr')) <= 1:
         print("Table has no licensee entries")
         return []
     else:
-        # Define variables to hold the extracted values
-        licensee_list = []
         # Iterate through the table rows
         for row in table.find_all('tr')[1:]:
             columns = row.find_all('td')
             relationship = columns[2].get_text(strip=True)
-            if relationship == 'RESPONSIBLE REP':
+            status = columns[4].get_text(strip=True)
+            if relationship == 'RESPONSIBLE REP' and status == 'A - ACTIVE':
                 licensee = columns[0].get_text(strip=True)
                 license_number = columns[1].get_text(strip=True)
                 expiration_date = columns[3].get_text(strip=True)
                 status = columns[4].get_text(strip=True)
-                licensee_list.append([licensee, license_number, expiration_date, status])
+                return [licensee, license_number, expiration_date, status]
 
-        return licensee_list
+        return []
 
 
-def extract_electrical_firm_insurance_details(table, business_name):
+def extract_electrical_firm_insurance_details(table, business_contact_table_id):
     """
         Extracts insurance details for an electrical firm from the given HTML table.a
 
-        Args:
-            table (BeautifulSoup): A BeautifulSoup object containing the parsed HTML table.
-
         Returns:
-            list: A list of lists, each containing the following details for each insurance entry:
-            :param business_name:
-            :param table:
+            list: A list of lists, each containing the following details for each insurance entry
 
         """
     insurance_list = []
@@ -339,24 +327,16 @@ def extract_electrical_firm_insurance_details(table, business_name):
             company = sanitize_data(columns[3].get_text(strip=True))
             exp_date = sanitize_data(columns[4].get_text(strip=True))
             insurance_list.append(
-                (const.CONST_ELECTRICAL_FIRM, business_name, insurance_type, policy, required, company, exp_date))
+                (insurance_type, policy, required, company, exp_date, business_contact_table_id))
 
     return insurance_list
 
 
-def extract_general_contract_insurance_details(table, business_name, licensee_name):
+def extract_general_contract_insurance_details(table, business_contact_table_id):
     """
         Extracts insurance details for an general contract from the given HTML table.a
 
-        Args:
-            table (BeautifulSoup): A BeautifulSoup object containing the parsed HTML table.
-
-        Returns:
-            list
-            :param licensee_name:
-            :param table:
-            :param business_name:
-        """
+    """
     insurance_list = []
     all_tr = table.find_all('tr')
     if len(all_tr) == 9:
@@ -376,8 +356,8 @@ def extract_general_contract_insurance_details(table, business_name, licensee_na
             company = sanitize_data(columns[3].get_text(strip=True))
             exp_date = sanitize_data(columns[4].get_text(strip=True))
             insurance_list.append(
-                (const.CONST_GENERAL_CONTRACT, licensee_name, business_name, insurance_type, policy, required, company,
-                 exp_date))
+                (insurance_type, policy, required, company,
+                 exp_date, business_contact_table_id))
 
     return insurance_list
 
