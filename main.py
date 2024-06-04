@@ -9,6 +9,7 @@ from connection import Connection
 from services.seleniumService import SeleniumService
 from bs4 import BeautifulSoup
 from selenium.webdriver.support import expected_conditions as EC
+import re
 
 
 # from utils.appUtil import AppUtil
@@ -145,7 +146,7 @@ def process_each_business(driver, active_businesses, business_type, db_con, db_c
             db_con.commit()
 
             insurance_data_to_insert = extract_general_contract_insurance_details(soup.find_all('table')[6],
-                                                                                  business_name,licensee_list[0])
+                                                                                  business_name, licensee_list[0])
 
             execute_batch(db_cursor, query.INSERT_LICENSEE_DETAILS_GENERAL_CONTRACT, insurance_data_to_insert)
             db_con.commit()
@@ -216,7 +217,7 @@ def extract_general_contract_licensee_details(table):
     expiration_date = \
         table.find('b', string=lambda text: 'Expiration' in text if text else False).parent.get_text(strip=True).split(
             ':')[-1].strip()
-    return [licensee_name, expiration_date, contractor_id]
+    return [remove_extra_spaces(licensee_name), expiration_date, contractor_id]
 
 
 def extract_electrical_firm_contact_details(soup):
@@ -362,6 +363,11 @@ def extract_general_contract_insurance_details(table, business_name, licensee_na
 
 def sanitize_data(value):
     return value if value != '' else None
+
+
+def remove_extra_spaces(text):
+    cleaned_text = re.sub(r'\s+', ' ', text)
+    return cleaned_text.strip()
 
 
 if __name__ == '__main__':
