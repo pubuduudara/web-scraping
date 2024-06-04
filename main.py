@@ -111,7 +111,8 @@ def extract_electrical_firm_active_businesses(page_source):
 def process_each_business(driver, active_businesses, business_type, db_con, db_cursor):
     for business_name, business_link in active_businesses:
         print(f"Processing.. Type: {business_type} | business: {business_name}")
-        driver.get(f'https://a810-bisweb.nyc.gov/bisweb/{business_link}')
+        URL = f'https://a810-bisweb.nyc.gov/bisweb/{business_link}'
+        driver.get(URL)
         WebDriverWait(driver, 0.005).until(
             EC.presence_of_element_located((By.TAG_NAME, 'body'))
         )
@@ -127,7 +128,7 @@ def process_each_business(driver, active_businesses, business_type, db_con, db_c
                 soup.find_all('table')[6])  # TODO: this can be empty
 
             if len(licensee_list) > 0:
-                insert_data = create_electrical_firm_business_contact_db_data(contact_details_list, licensee_list)
+                insert_data = create_electrical_firm_business_contact_db_data(contact_details_list, licensee_list, URL)
                 execute_batch(db_cursor, query.INSERT_BUSINESS_CONTACT_DETAILS_ELECTRICAL_FIRM, insert_data)
                 db_con.commit()
             else:
@@ -141,7 +142,7 @@ def process_each_business(driver, active_businesses, business_type, db_con, db_c
         if business_type == const.CONST_GENERAL_CONTRACT:
             contact_details = extract_general_contract_contact_details(soup)
             licensee_list = extract_general_contract_licensee_details(soup.find_all('table')[3])
-            insert_data = create_general_contract_business_contact_db_data(contact_details, licensee_list)
+            insert_data = create_general_contract_business_contact_db_data(contact_details, licensee_list, URL)
             db_cursor.execute(query.INSERT_BUSINESS_CONTACT_DETAILS_GENERAL_CONTRACT, insert_data)
             db_con.commit()
 
@@ -152,18 +153,20 @@ def process_each_business(driver, active_businesses, business_type, db_con, db_c
             db_con.commit()
 
 
-def create_electrical_firm_business_contact_db_data(contact_details_list, licensee_details_list):
+def create_electrical_firm_business_contact_db_data(contact_details_list, licensee_details_list, pageURL):
     db_rows = []
     for licensee in licensee_details_list:
         licensee.extend(contact_details_list)
         licensee.append(const.CONST_ELECTRICAL_FIRM)
+        licensee.append(pageURL)
         db_rows.append(licensee)
     return db_rows
 
 
-def create_general_contract_business_contact_db_data(contact_details_list, licensee_details):
+def create_general_contract_business_contact_db_data(contact_details_list, licensee_details, pageURL):
     licensee_details.extend(contact_details_list)
     licensee_details.append(const.CONST_GENERAL_CONTRACT)
+    licensee_details.append(pageURL)
     return tuple(licensee_details)
 
 
