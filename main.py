@@ -12,19 +12,14 @@ from selenium.webdriver.support import expected_conditions as EC
 import re
 
 
-# from utils.appUtil import AppUtil
-# from utils.loggerUtil import logger #TODO
-
-
 def run():
     # initiate driver
     driver = SeleniumService.init_web_drive()
+    # initiate db connection
     db_con = Connection.connect_to_db()
-    db_cursor = db_con.cursor()
-
-    # appUtil = AppUtil()   #TODO
 
     try:
+        db_cursor = db_con.cursor()
         for business_type in const.BUSINESSES_TYPES:
             print(f'Data extracting started for business type {business_type}')
             for prefix in const.BUSINESS_NAME_PREFIXES:
@@ -67,7 +62,6 @@ def run():
                 process_each_business(driver, all, business_type, db_con, db_cursor)
         print("====COMPLETED======")
     except Exception as e:
-        # add intemediate chatch and skip any non processed recrods
         message = f"An error occurred: {e}"
         print(message)
     finally:
@@ -76,6 +70,16 @@ def run():
 
 
 def extract_general_contract_active_businesses(page_source):
+    """
+        Extracts active general contract businesses from a given HTML page source.
+
+        Args:
+            page_source (str): The HTML source code of the webpage containing business data.
+
+        Returns:
+            list[tuple[str, str]]: A list of tuples containing the business name and its corresponding link,
+            for businesses with an "ACTIVE" status. If no active businesses are found, an empty list is returned.
+        """
     soup = BeautifulSoup(page_source, 'html.parser')
     active_businesses = []
     rows = soup.find_all('tr')
@@ -93,6 +97,16 @@ def extract_general_contract_active_businesses(page_source):
 
 
 def extract_electrical_firm_active_businesses(page_source):
+    """
+        Extracts active electrical firm businesses from a given HTML page source.
+
+        Args:
+            page_source (str): The HTML source code of the webpage containing business data.
+
+        Returns:
+            list[tuple[str, str]]: A list of tuples containing the business name and its corresponding link,
+            for businesses with an "ACTIVE" status. If no active businesses are found, an empty list is returned.
+        """
     soup = BeautifulSoup(page_source, 'html.parser')
     active_businesses = []
     rows = soup.find_all('tr')
@@ -109,6 +123,10 @@ def extract_electrical_firm_active_businesses(page_source):
 
 
 def process_each_business(driver, active_businesses, business_type, db_con, db_cursor):
+    """
+        Processes each active business from a given list, extracting details and potentially storing them
+        in a database based on the business type.
+    """
     for business_name, business_link in active_businesses:
         print(f"Processing.. Type: {business_type} | business: {business_name}")
         URL = f'https://a810-bisweb.nyc.gov/bisweb/{business_link}'
@@ -125,7 +143,7 @@ def process_each_business(driver, active_businesses, business_type, db_con, db_c
             contact_details_list = extract_electrical_firm_contact_details(soup)
 
             licensee_list = extract_electrical_firm_licensee_details(
-                soup.find_all('table')[6])  # TODO: this can be empty
+                soup.find_all('table')[6])
 
             if len(licensee_list) > 0:
                 insert_data = create_electrical_firm_business_contact_db_data(contact_details_list, licensee_list, URL)

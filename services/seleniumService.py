@@ -8,13 +8,15 @@ class SeleniumService:
 
     @staticmethod
     def init_web_drive():
-        print('Setting up selenium web driver with Selenium in headless mode..')
+        try:
+            # Setup Chrome options
+            chrome_options = Options()
+            chrome_options.add_argument("--headless")  # Ensure GUI is off
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
 
-        # Setup Chrome options
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")  # Ensure GUI is off
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-dev-shm-usage")
-
-        # Setup WebDriver
-        return webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
+            # Setup WebDriver
+            return webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
+        except Exception as e:
+            message = f"An error occurred in init_web_drive: {e}"
+            print(message)
